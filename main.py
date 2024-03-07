@@ -7,12 +7,12 @@ from dotenv import dotenv_values
 
 import requests
 
-from flask import Flask, render_template, url_for, g
+from flask import Flask, render_template, url_for
 from flask_socketio import SocketIO
 from datetime import datetime
 
 # My additional functionality
-from text_classification import classify
+from text_classification import classify, extend_ai_answer
 from plot_g_html import plot_diagram
 from ml_predictions import predict_by_linear_regression
 
@@ -35,31 +35,36 @@ def index():
 
 
 @socketio.on('user_prompt')
-def on_user_prompt(prompt):
-    match classify(prompt):
-        case label, answer:
+def on_user_prompt(user_prompt):
+    match classify(user_prompt):
+        case labels, answer:
             # Little a bit debugging
-            print(label)
+            print(labels)
 
             answer_data = {
-                'user_prompt': prompt,
-                'copilot_answer': answer
+                'user_prompt': user_prompt,
+                'copilot_answer': answer,
+                'graphs': []
             }
 
             # Copilot answer with graphs only when link for TikTok sound or account or video is provided
-            if link := re.findall(TIKTOK_REGEX, prompt):
-                if label == 1:
-                    graph_url = request_account_analytic(link[0])
-                    answer_data |= {'graphs': graph_url}
-                elif label == 2:
-                    graph_url = request_song_analytic(link[0])
-                    answer_data |= {'graphs': graph_url}
-                else:
-                    graph_url = request_prediction_popularity_by_song(link[0])
-                    answer_data |= {'graphs': graph_url}
-            else:
-                socketio.emit('copilot_answer', answer_data.update(
-                    {'copilot_answer': 'Please provide me a link'}))
+            # if link := re.findall(TIKTOK_REGEX, user_prompt):
+            for label in labels:
+                match label:
+                    case 11:
+                        graph_url = request_account_analytic("link")
+                        answer_data['graphs'].append(graph_url)
+                    case 12:
+                        graph_url = request_song_analytic("link")
+                        answer_data['graphs'].append(graph_url)
+                    case 13:
+                        graphs_url = request_prediction_popularity_by_song("link")
+                        answer_data['graphs'].extend(graphs_url)
+                    case 14:
+                        top_songs = request_top_songs_on_platform()
+                        answer_data['copilot_answer'] = extend_ai_answer(f"Write answer to user about top songs using this list {top_songs}")
+                    case _:
+                        pass
 
             # More debugging
             print(answer_data)
@@ -247,6 +252,10 @@ def request_prediction_popularity_by_song(song_or_video_link: str) -> list:
                         chart_type='bar')
 
     return [url_for('static', filename=fig) for fig in (fig1, fig2, fig3)]
+
+
+def request_top_songs_on_platform() -> list[str]:
+    return ["Song a - Artist a", "Song b - Artist b", "Song c - Artist c"]
 
 
 if __name__ == '__main__':
