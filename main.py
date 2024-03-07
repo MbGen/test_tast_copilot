@@ -52,14 +52,17 @@ def on_user_prompt(user_prompt):
             for label in labels:
                 match label:
                     case 11:
-                        graph_url = request_account_analytic("link")
-                        answer_data['graphs'].append(graph_url)
+                        graph_url, data = request_account_analytic("link")
+                        answer_data['graphs'].extend(graph_url)
+                        answer_data['copilot_answer'] += extend_ai_answer(f"Act like analytic and based on this data {data} write your thought about it")
                     case 12:
-                        graph_url = request_song_analytic("link")
-                        answer_data['graphs'].append(graph_url)
+                        graph_url, data = request_song_analytic("link")
+                        answer_data['graphs'].extend(graph_url)
+                        answer_data['copilot_answer'] += extend_ai_answer(f"Act like analytic and based on this data {data} write your thought about it")
                     case 13:
-                        graphs_url = request_prediction_popularity_by_song("link")
+                        graphs_url, data = request_prediction_popularity_by_song("link")
                         answer_data['graphs'].extend(graphs_url)
+                        answer_data['copilot_answer'] += extend_ai_answer(f"Act like analytic and based on this data {data} write your thought about it")
                     case 14:
                         top_songs = request_top_songs_on_platform()
                         answer_data['copilot_answer'] = extend_ai_answer(f"Write answer to user about top songs using this list {top_songs}")
@@ -136,7 +139,7 @@ def _write_json_local(json_obj, title):
 
 # ARGUMENT IS NOT USED because the api hasn't been finalized yet.
 # Called when user requested analytic for account
-def request_account_analytic(account_link: str) -> list:
+def request_account_analytic(account_link: str) -> tuple[list, dict]:
     print("GETTING ACCOUNT FROM API")
     random_account_id = get_random_tt_account_id()
     account_data = get_author_data(random_account_id)
@@ -156,11 +159,11 @@ def request_account_analytic(account_link: str) -> list:
                             exclude=['authorId'],
                             chart_type='pie')
 
-    return [url_for('static', filename=filename)]
+    return [url_for('static', filename=filename)], account_data
 
 
 # Called when user requested analytic for song
-def request_song_analytic(song_or_video_link: str) -> list:
+def request_song_analytic(song_or_video_link: str) -> tuple[list, dict]:
     print("GETTING SOUND FROM API")
     sound = get_random_tt_sound_extended()
     # sound = get_random_tt_sound_info()  # not response
@@ -196,7 +199,7 @@ def request_song_analytic(song_or_video_link: str) -> list:
                                      'artistRegion'],
                             chart_type='bar')
 
-    return [url_for('static', filename=filename)]
+    return [url_for('static', filename=filename)], sound['music']
 
 
 # Adds n dates with same distance in original dates array and return only extended part
@@ -217,7 +220,7 @@ def extend_dates(original_dates, additional_count):
 
 
 # Called when user requested prediction for song or video (currently im working with song)
-def request_prediction_popularity_by_song(song_or_video_link: str) -> list:
+def request_prediction_popularity_by_song(song_or_video_link: str) -> tuple[list, dict]:
     sound = get_random_tt_sound_extended()
     date_format = "%Y-%m-%dT%H:%M:%S.%f"
     sound_video_popularity = sound['soundVideoData']
@@ -251,7 +254,7 @@ def request_prediction_popularity_by_song(song_or_video_link: str) -> list:
                         title='Song statistic',
                         chart_type='bar')
 
-    return [url_for('static', filename=fig) for fig in (fig1, fig2, fig3)]
+    return [url_for('static', filename=fig) for fig in (fig1, fig2, fig3)], sound_video_popularity
 
 
 def request_top_songs_on_platform() -> list[str]:

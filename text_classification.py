@@ -102,8 +102,15 @@ def recognize_actions(text) -> list[int]:
     }
 
     regexp = re.compile(r'^\W*<(.*?)>')
-    labels = regexp.findall(text)
+    labels = regexp.findall(text)[0]
     print("LABELS I FOUND IN TEXT", labels)
+    try:
+        labels = labels.split(',')
+        labels = list(map(lambda x: x.rstip(), labels))
+    except Exception as e:
+        print("EXCEPTION IN SPLITTING LABELS")
+        print(e)
+
     actions = []
 
     for label in labels:
